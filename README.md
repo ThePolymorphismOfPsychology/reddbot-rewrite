@@ -1,0 +1,2 @@
+# reddbot-rewrite
+Discord Bot
