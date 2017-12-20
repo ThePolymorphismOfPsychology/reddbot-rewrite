@@ -1,10 +1,18 @@
-rbversion = "1.5.1 Brave Boar"
+rbversion = "rewrite-0.0.1 Auspicious Anteater"
 import random
-import discord
-import asyncio
 import sys
+try:
+  import discord
+except Import Error:
+  print("Sorry, but Discord.PY needs to be installed to run ReddBot.")
+  sys.exit(1)
+import asyncio
 client = discord.Client()
-
+try:
+  from tinydb import TinyDB, operations, Query
+except ImportError:
+  print("Sorry, but TinyDB needs to be installed to run ReddBot.")
+  sys.exit(1)
 @client.event
 async def on_ready():
     print('Logged in as')
@@ -47,15 +55,11 @@ async def on_server_remove(serv):
 
 @client.event
 async def on_error(eve,*args,**kwargs):
-    print(sys.exc_info()[1])
-    if sys.exc_info()[1] == "Shutdown":
-        raise Exception("Shutdown2")
-    else:
-        await client.send_message((await client.application_info()).owner,"ReddBot Error: ```Caused By: " + str(eve) + "```")
-        strtosend = ""
-        for agg in sys.exc_info():
-            strtosend = strtosend + str(agg) + "\n"
-        await client.send_message((await client.application_info()).owner,"```" + strtosend + "```")
+    await client.send_message((await client.application_info()).owner,"ReddBot Error: ```Caused By: " + str(eve) + "```")
+    strtosend = ""
+    for agg in sys.exc_info():
+        strtosend = strtosend + str(agg) + "\n"
+    await client.send_message((await client.application_info()).owner,"```" + strtosend + "```")
 
 @client.event
 async def on_message(message):
