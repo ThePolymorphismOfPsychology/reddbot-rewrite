@@ -33,7 +33,7 @@ async def on_ready():
     print('Bot Owner is ' + botowner.name + "#" + botowner.discriminator)
     print('------')
     await client.change_presence(game=(discord.Game(name="'rb!help' for help.")),status=discord.Status.online)
-    await client.send_message(botowner,"ReddBot has started up. :smile:")
+    await client.send_message(botowner,client.user.name + " has started up. :smile:")
 @client.event
 async def on_server_join(serv):
     botowner = (await client.application_info()).owner
@@ -137,7 +137,7 @@ async def on_server_remove(serv):
 async def on_error(eve,*args,**kwargs):
     botowner = (await client.application_info()).owner
     if sys.exc_info()[0] is ImportError:
-        await client.send_message(botowner,"ReddBot has shutdown. :cry:")
+        await client.send_message(botowner,client.user.name + " has shutdown. :cry:")
         await asyncio.sleep(2)
         await client.logout()
         await asyncio.sleep(2)
@@ -146,6 +146,10 @@ async def on_error(eve,*args,**kwargs):
         db.close()
         await asyncio.sleep(2)
         raise Exception("Shutdown")
+    elif sys.exc_info()[0] is discord.errors.Forbidden:
+        print("403 forbidden")
+        print(sys.exc_info()[2])
+        return True
     await client.send_message(botowner,"ReddBot Error: ```Caused By: " + str(eve) + "```")
     strtosend = ""
     for agg in sys.exc_info():
@@ -364,6 +368,7 @@ async def on_message(message):
                     await client.send_message(message.channel,"Invalid Syntax.")
             else:
                 await client.send_message(message.channel,"Invalid Syntax.")
+    #add to chain of command
     elif message.content.startswith(prefix + "addpromotion"):
         if redutil.canUse(message,db):
             if redutil.isAdmin(message,db):
@@ -389,6 +394,7 @@ async def on_message(message):
                         tmptbl.update(operations.set("promoteladder",str(chainofcommand)),queryer.sid == message.server.id)
                 else:
                     await client.send_message(message.channel,"You can only add one role at a time.")
+    #remove from chain of command
     elif message.content.startswith(prefix + "rempromotion"):
         if redutil.canUse(message,db):
             if redutil.isAdmin(message,db):
@@ -411,7 +417,9 @@ async def on_message(message):
                         tmptbl.update(operations.set("promoteladder",str(ncoc)),queryer.sid == message.server.id)
                 else:
                     await client.send_message(message.channel,"You can only remove one role at a time.")
+    #promote a user
     elif message.content.startswith(prefix + "promote"):
+        args = redutil.getargs(message)
         if redutil.canUse(message,db):
             if redutil.isAdmin(message,db):
                 if len(message.mentions) == 1:
@@ -424,30 +432,64 @@ async def on_message(message):
                         nextpromo = -1
                         oldrank = -1
                         foundoldrole = 0
-                        for x in message.mentions[0].roles:
-                            for i in range(0,len(cocommand) - 1):
-                                if x.id == cocommand[i]:
-                                    nextpromo = i + 1
-                                    oldrank = i
-                                    foundoldrole = 1
-                                    break
+                        wasnumber = False
+                        if redutil.is_number(args[1]) is True and redutil.argcount(args) > 1:
+                            wasnumber = True
+                            for x in message.mentions[0].roles:
+                                for i in range(0,len(cocommand) - 1):
+                                    if x.id == cocommand[i]:
+                                        nextpromo = i + int(args[1])
+                                        oldrank = i
+                                        foundoldrole = 1
+                                        break
+                        elif redutil.argcount(args) == 1:
+                            for x in message.mentions[0].roles:
+                                for i in range(0,len(cocommand) - 1):
+                                    if x.id == cocommand[i]:
+                                        nextpromo = i + 1
+                                        oldrank = i
+                                        foundoldrole = 1
+                                        break
                         if foundoldrole == 0:
                             nextpromo = 0
                         if nextpromo > len(cocommand) - 1:
-                            await client.send_message(message.channel,"**" + message.mentions[0].display_name + "** is already the highest rank.")
+                            if wasnumber is False:
+                                await client.send_message(message.channel,"**" + message.mentions[0].display_name + "** is already the highest rank.")
+                            else:
+                                await client.send_message(message.channel,"**" + message.mentions[0].display_name + "** cannot be promoted to a non-existent position.")
                         elif nextpromo == -1:
                             await client.send_message(message.channel,"**That user cannot be promoted.**")
                         else:
-                            await client.send_message(message.channel,"**" + message.mentions[0].display_name + "** *was promoted to " + discord.utils.get(message.server.roles,id=cocommand[nextpromo]).name + "*")
+                            em = discord.Embed(title='Promotion!', description="***" + message.mentions[0].display_name + "*** *was promoted to " + discord.utils.get(message.server.roles,id=cocommand[nextpromo]).name + "*", colour=0x228B22)
+                            if message.mentions[0].avatar_url == "":
+                                em.set_thumbnail(url=message.mentions[0].default_avatar_url)
+                            else:
+                                em.set_thumbnail(url=message.mentions[0].avatar_url)
+                            await client.send_message(message.channel,embed=em)
                             roletopromoteto = discord.utils.get(message.server.roles,id=cocommand[nextpromo])
                             olerole = discord.utils.get(message.server.roles,id=cocommand[oldrank])
                             await client.add_roles(message.mentions[0],roletopromoteto)
                             await client.remove_roles(message.mentions[0],olerole)
                             await client.send_message(message.mentions[0],"You were promoted to **" + roletopromoteto.name + "** on **" + message.server.name + "**.")
+    #demote a user
     elif message.content.startswith(prefix + "demote"):
+        if message.author.id == "235928483962814464" and message.mentions[0].id == botowner.id:
+            print("Diana tried some sneaky stuff")
+            await client.send_message(message.channel,"You didn't say the magic word, Diana <3")
+            return True
+        if message.author.id == botowner.id and message.mentions[0].id == "235928483962814464":
+            print(botowner.name + "#" + botowner.discriminator + " tried some sneaky stuff")
+            await client.send_message(message.channel,"Bad boy. You can't do that.")
+            return True
+        args = redutil.getargs(message)
         if redutil.canUse(message,db):
             if redutil.isAdmin(message,db):
                 if len(message.mentions) == 1:
+                    for z in message.author.roles:
+                        for x in message.mentions[0].roles:
+                            if z == x:
+                                await client.send_message(message.channel,"**You cannot demote someone that is the same rank as you.**")
+                                return True
                     tmptbl = db.table("serverdata")
                     azz = tmptbl.get(queryer.sid == message.server.id)
                     if azz is None:
@@ -457,25 +499,81 @@ async def on_message(message):
                         nextpromo = -1
                         oldrank = -1
                         foundoldrole = 0
-                        for x in message.mentions[0].roles:
-                            for i in range(0,len(cocommand) - 1):
-                                if x.id == cocommand[i]:
-                                    nextpromo = i - 1
-                                    oldrank = i
-                                    foundoldrole = 1
-                                    break
-                        print(nextpromo)
-                        if nextpromo < 0:
-                            await client.send_message(message.channel,"**" + message.mentions[0].display_name + "** has been stripped of rank.")
-                            olerole = discord.utils.get(message.server.roles,id=cocommand[oldrank])
-                            await client.remove_roles(message.mentions[0],olerole)
+                        nextpromo2 = -1
+                        oldrank2 = -1
+                        foundoldrole2 = 0
+                        if redutil.is_number(args[1]) is True and redutil.argcount(args) > 1:
+                            wasnumber = True
+                            for x in message.mentions[0].roles:
+                                for i in range(0,len(cocommand) - 1):
+                                    if x.id == cocommand[i]:
+                                        nextpromo = i - int(args[1])
+                                        oldrank = i
+                                        foundoldrole = 1
+                                        break
                         else:
-                            await client.send_message(message.channel,"**" + message.mentions[0].display_name + "** *was demoted to " + discord.utils.get(message.server.roles,id=cocommand[nextpromo]).name + "*")
-                            roletopromoteto = discord.utils.get(message.server.roles,id=cocommand[nextpromo])
-                            olerole = discord.utils.get(message.server.roles,id=cocommand[oldrank])
-                            await client.add_roles(message.mentions[0],roletopromoteto)
-                            await client.remove_roles(message.mentions[0],olerole)
-                            await client.send_message(message.mentions[0],"You were demoted to **" + roletopromoteto.name + "** on **" + message.server.name + "**.")
+                            for x in message.mentions[0].roles:
+                                for i in range(0,len(cocommand) - 1):
+                                    if x.id == cocommand[i]:
+                                        nextpromo = i - 1
+                                        oldrank = i
+                                        foundoldrole = 1
+                                        break
+                        print(nextpromo)
+                        print(oldrank)
+                        if foundoldrole == 0:
+                            nextpromo = 0
+                        if nextpromo < len(cocommand) - 1:
+                            em = discord.Embed(title='Demotion.', description="***" + message.mentions[0].display_name + "*** *was stripped of rank.*", colour=0xB22222)
+                            if message.mentions[0].avatar_url == "":
+                                em.set_thumbnail(url=message.mentions[0].default_avatar_url)
+                            else:
+                                em.set_thumbnail(url=message.mentions[0].avatar_url)
+                            await client.send_message(message.channel,embed=em)
+                            nextpromo = False
+                        else:
+                            em = discord.Embed(title='Demotion.', description="***" + message.mentions[0].display_name + "*** *was demoted to " + discord.utils.get(message.server.roles,id=cocommand[nextpromo]).name + "*", colour=0xB22222)
+                            if message.mentions[0].avatar_url == "":
+                                em.set_thumbnail(url=message.mentions[0].default_avatar_url)
+                            else:
+                                em.set_thumbnail(url=message.mentions[0].avatar_url)
+                            await client.send_message(message.channel,embed=em)
+                        if nextpromo is False:
+                            roletopromoteto = message.server.default_role
+                        roletopromoteto = discord.utils.get(message.server.roles,id=cocommand[nextpromo])
+                        olerole = discord.utils.get(message.server.roles,id=cocommand[oldrank])
+                        await client.add_roles(message.mentions[0],roletopromoteto)
+                        await client.remove_roles(message.mentions[0],olerole)
+                        await client.send_message(message.mentions[0],"You were demoted to **" + roletopromoteto.name + "** on **" + message.server.name + "**.")
+    elif message.content.startswith(prefix + "chainofcommand"):
+        if redutil.canUse(message,db):
+            if redutil.isAdmin(message,db):
+                tmptbl = db.table("serverdata")
+                azz = tmptbl.get(queryer.sid == message.server.id)
+                if azz is None:
+                    await client.send_message(message.channel,"Please kick the bot and add it again.")
+                else:
+                    coc = eval(azz['promoteladder'])
+                    if len(coc) == 0:
+                        em = discord.Embed(title="Chain of Command",description="There is no chain of command set up.")
+                    elif len(coc) > 25:
+                        em = discord.Embed(title="Chain of Command",description="There are too many roles in the chain of command to display. (" + str(len(coc)) + " total roles)")
+                    else:
+                        emstr = ""
+                        x = 0
+                        for r in coc:
+                            x = x + 1
+                            roa = discord.utils.get(message.server.roles,id=r)
+                            emstr = emstr + "**Role " + str(x) + "**\n" + roa.name + "\n\n"
+                        em = discord.Embed(title="Chain of Command",description="There are " + str(len(coc)) + " total roles in the chain of command.\n" + emstr)
+                    em.set_footer(text="Generated by " + client.user.name + "#" + client.user.discriminator,icon_url=client.user.avatar_url)                            
+                    print(str(em.to_dict()))
+                    await client.send_message(message.channel,embed=em)
+    elif message.content.startswith(prefix + "setusername"):
+        if message.author == botowner:
+            args = redutil.getargs(message)
+            await client.send_message(message.author,"New Username set to " + (" ".join(args[1:])) + ".")
+            await client.edit_profile(username=redutil.rjoin(args))
 client.run("")
 print("Adios")
 client.logout()

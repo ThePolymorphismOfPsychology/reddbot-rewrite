@@ -80,3 +80,11 @@ def rjoin(arglist):
         return ""
     else:
         return " ".join(arglist[1:])
+
+def is_number(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        pass
+        return False
