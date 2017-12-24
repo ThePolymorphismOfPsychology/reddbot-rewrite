@@ -90,10 +90,10 @@ async def on_member_join(member):
         tmptbl.insert({"sid": serv.id, "welcomemessage": "hello, {user.mention}!","enabled":"false","cid": mygenchan,"dmMessage": "hello {user.name}#{user.discrim}","enableddm":"false","promoteladder":"[]"})
     else:
         if az['enabled'] == "true":
-            await client.send_message(discord.utils.get(member.server.channels, id=az['cid'], type=discord.ChannelType.text),az['welcomemessage'].replace("{user.mention}",member.mention).replace("{user.name}",member.name).replace("{user.discrim}",member.discriminator))
+            await client.send_message(discord.utils.get(member.server.channels, id=az['cid'], type=discord.ChannelType.text),redutil.parseMemberMsgTemplate(az['welcomemessage'],member))
         if az['enableddm'] == "true":
             await asyncio.sleep(3)
-            await client.send_message(member,az['dmMessage'].replace("{user.mention}",member.mention).replace("{user.name}",member.name).replace("{user.discrim}",member.discriminator))
+            await client.send_message(member,redutil.parseMemberMsgTemplate(az['dmMessage'],member))
     
 @client.event
 async def on_server_update(servbef,servaf):
@@ -351,6 +351,7 @@ async def on_message(message):
 #shutdown bot
     elif message.content.startswith(prefix + "shutdown"):
         if message.author == botowner:
+            await client.change_presence(status=discord.Status.offline)
             raise ImportError("Shutdown")
     #channel permissions
     elif message.content.startswith(prefix + "channel"):
@@ -574,6 +575,21 @@ async def on_message(message):
             args = redutil.getargs(message)
             await client.send_message(message.author,"New Username set to " + (" ".join(args[1:])) + ".")
             await client.edit_profile(username=redutil.rjoin(args))
+    #hug someone
+    elif message.content.startswith(prefix + "hug"):
+        if redutil.canUse(message,db) is True:
+            if redutil.msgmentioncount(message) == 1:
+                if redutil.am_only_i_mentioned(client,message) is True:
+                    await client.send_message(message.channel,random.choice(["You're silly! Taki already knows you like her!","Taki knows you like her :heart:","Thank you :heart: **" + client.user.mention + " hugs " + message.author.display_name + " back**"]))
+                else:
+                    await client.send_message(message.channel,random.choice(["**%s hugged %s!**","**%s gave %s a hug!**"]) % (message.author.mention, message.mentions[0].display_name))
+    elif message.content.startswith(prefix + "slap"):
+        if redutil.canUse(message,db) is True:
+            if redutil.msgmentioncount(message) == 1:
+                if redutil.am_only_i_mentioned(client,message) is True:
+                    await client.send_message(message.channel,random.choice(["You're mean! :crying_cat_face:","Why're you being so mean?? :head_bandage:",":pouting_cat: **" + client.user.mention + " slaps " + message.author.display_name + " back**"]))
+                else:
+                    await client.send_message(message.channel,random.choice(["**%s slapped %s!**","**%s slapped %s! Ouch!**","**%s slapped %s! That looked painful!**"]) % (message.author.mention, message.mentions[0].display_name))
 client.run("")
 print("Adios")
 client.logout()

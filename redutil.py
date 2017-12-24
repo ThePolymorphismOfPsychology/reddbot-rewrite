@@ -63,7 +63,7 @@ def isAdmin(message,db):
                 serveradminroles.insert({"rid": role.id,"admin": "false","disable_botuse": "false"})
         return False
     return False
-async def msgowner(msg):
+async def msgowner(msg,botowner):
     await client.send_message(botowner,msg)
     return True
 
@@ -88,3 +88,19 @@ def is_number(s):
     except ValueError:
         pass
         return False
+
+def am_only_i_mentioned(myuser,message):
+    if message.mentions[0].id == myuser.user.id:
+        return True
+    else:
+        return False
+def mymention(myuser):
+    return myuser.user.mention
+
+def msgmentioncount(message):
+    return len(message.mentions)
+
+def parseAuthMsgTemplate(message):
+    return message.content.replace("{user.id}",message.author.id).replace("{user.name}", message.author.name).replace("{user.mention}",message.author.mention).replace("{user.discrim}",message.author.discriminator)
+def parseMemberMsgTemplate(str,obj):
+    return str.replace("{user.id}",obj.id).replace("{user.name}", obj.name).replace("{user.mention}",obj.mention).replace("{user.discrim}",obj.discriminator)
